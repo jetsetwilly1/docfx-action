@@ -1,19 +1,55 @@
-FROM mcr.microsoft.com/dotnet/sdk:6.0-jammy
+FROM ubuntu:22.04 as unzipper 
 
-RUN dotnet --version
+ARG DOCFX_VERSION=v2.59.4
 
-# Setting the path up to allow .NET tools
-ENV PATH "$PATH:/root/.dotnet/tools"
+RUN apt-get update -y \
+    && apt-get install -yqq wget unzip\
+    && wget -O /tmp/docfx.zip https://github.com/dotnet/docfx/releases/download/v2.64.0/docfx-win-x64-v2.64.0.zip \
+    && unzip -o /tmp/docfx.zip -d /docfx
 
-RUN dotnet tool install --global docfx --version 2.62.1
+FROM mono:latest
 
-# Just checking things
-RUN dotnet tool list --global
-RUN docfx -v
+ARG DOTNET_SDK=dotnet-sdk-7.0
 
-# HACK: This effectively negates a git security patch that requires file ownership to match.
-# Doing this because it does not appear that there is a standard way to address this in our container setup.
-# A follow-up will likely be to take in a parameter and set the safe directory when that parameter is passed in.
-RUN git config --system --add safe.directory '*'
+RUN apt update -yqq \
+    && apt install -yqq gpg apt-transport-https \
+    && curl -o - https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.asc.gpg \
+    && curl -o /etc/apt/sources.list.d/microsoft-prod.list https://packages.microsoft.com/config/debian/10/prod.list \
+    && chown root:root /etc/apt/trusted.gpg.d/microsoft.asc.gpg \
+                       /etc/apt/sources.list.d/microsoft-prod.list \
+    && apt update -yqq \
+    && apt install -yqq \
+        git \
+        ${DOTNET_SDK} \
+        wkhtmltopdf \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=unzipper /docfx /opt/docfx
+ADD ./entrypoint.sh /usr/local/bin/docfx
 
 ENTRYPOINT [ "docfx" ]
+
+FROM mono:latest
+
+RUN apt update -yqq \
+    && apt install -yqq gpg apt-transport-https \
+    && curl -o - https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/microsoft.asc.gpg \
+    && curl -o /etc/apt/sources.list.d/microsoft-prod.list https://packages.microsoft.com/config/debian/9/prod.list \
+    && chown root:root /etc/apt/trusted.gpg.d/microsoft.asc.gpg \
+                       /etc/apt/sources.list.d/microsoft-prod.list \
+    && apt update -yqq \
+    && apt install -yqq \
+        unzip \
+        git \
+        dotnet-sdk-3.1 \
+        wkhtmltopdf \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/docfx:${PATH}"
+ENTRYPOINT [ "docfx" ]
+
+ADD ./entrypoint.sh /usr/local/bin/docfx
+
+ADD https://github.com/dotnet/docfx/releases/download/v2.64.0/docfx-win-x64-v2.64.0.zip /
+RUN unzip docfx-win-x64-v2.64.0.zip -d /docfx && \
+    rm docfx-win-x64-v2.64.0.zip

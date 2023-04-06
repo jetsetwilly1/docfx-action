@@ -3,8 +3,8 @@ author: Niklas Mollenhauer
 description: Runs docfx as a GitHub Action.
 
 runs:
-  using: docker
-  image: 'docker://jetsetwilly1/docfx-action:latest'
+  using: 'docker'
+  image: 'Dockerfile'
 
 branding:
   icon: book

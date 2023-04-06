@@ -4,7 +4,7 @@ ARG DOCFX_VERSION=v2.59.4
 
 RUN apt-get update -y \
     && apt-get install -yqq wget unzip\
-    && wget -O /tmp/docfx.zip https://github.com/dotnet/docfx/releases/download/v2.64.0/docfx-win-x64-v2.64.0.zip \
+    && wget -O /tmp/docfx.zip https://github.com/dotnet/docfx/releases/download/v2.64.0/docfx-linux-x64-v2.64.0.zip \
     && unzip -o /tmp/docfx.zip -d /docfx
 
 FROM mono:latest
